@@ -41,6 +41,7 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const WebSocket = require('ws');
+const { notificationEmitter, notifyNewBid } = require('./services/notifications');
 
 // Создание экземпляра Express приложения
 const app = express();
@@ -67,24 +68,18 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Функция для отправки уведомления всем подключенным клиентам
-function broadcastNewBid(bidData) {
-    const message = JSON.stringify({
-        type: 'NEW_BID',
-        data: bidData,
-        timestamp: new Date().toISOString()
-    });
-
+// Слушаем события о новых заявках и отправляем через WebSocket
+notificationEmitter.on('newBid', (message) => {
     clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
             client.send(message);
         }
     });
-    console.log('📢 Уведомление о новой заявке отправлено клиентам:', bidData.id);
-}
+    console.log('📢 Уведомление о новой заявке отправлено клиентам');
+});
 
-// Экспортируем функцию для использования в маршрутах
-module.exports = { app, server, broadcastNewBid };
+// Экспортируем функции для использования в маршрутах
+module.exports = { app, server, notifyNewBid };
 
 // === Middleware ===
 // Разрешение CORS для всех доменов (в продакшене лучше настроить конкретные домены)

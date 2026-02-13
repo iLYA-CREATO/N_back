@@ -20,13 +20,13 @@ const multer = require('multer');
 // Импорт sharp для сжатия изображений
 const sharp = require('sharp');
 
-// Получаем broadcastNewBid из server.js (избегаем циклической зависимости)
-let broadcastNewBid = null;
+// Получаем notifyNewBid из server.js
+let notifyNewBid = null;
 try {
     const serverModule = require('../server.js');
-    broadcastNewBid = serverModule.broadcastNewBid;
+    notifyNewBid = serverModule.notifyNewBid;
 } catch (e) {
-    console.log('WebSocket broadcast не доступен (модуль server.js не экспортирует)');
+    console.log('WebSocket notify не доступен (модуль server.js не экспортирует)');
 }
 
 // Функция для восстановления UTF-8 из Mojibake и URL-encoded
@@ -629,9 +629,9 @@ router.post('/', authMiddleware, async (req, res) => {
         });
 
         // Отправляем WebSocket уведомление о новой заявке
-        if (broadcastNewBid) {
+        if (notifyNewBid) {
             try {
-                broadcastNewBid({
+                notifyNewBid({
                     id: newBid.id,
                     tema: newBid.tema,
                     status: newBid.status,
@@ -812,10 +812,10 @@ router.post('/batch', authMiddleware, async (req, res) => {
         logBidData('Создано batch заявок', { count: createdBids.length, bids: createdBids.map(b => b.id) });
 
         // Отправляем WebSocket уведомления о новых заявках
-        if (broadcastNewBid) {
+        if (notifyNewBid) {
             try {
                 createdBids.forEach((bid) => {
-                    broadcastNewBid({
+                    notifyNewBid({
                         id: bid.id,
                         tema: bid.tema,
                         status: bid.status,
