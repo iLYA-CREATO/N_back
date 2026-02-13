@@ -605,7 +605,7 @@ router.post('/', authMiddleware, async (req, res) => {
                 plannedResolutionDate: plannedResolutionDate && String(plannedResolutionDate).trim() ? new Date(plannedResolutionDate.length === 16 ? plannedResolutionDate + ':00' : plannedResolutionDate) : null,
                 plannedReactionTimeMinutes: slaReactionTimeMinutes && String(slaReactionTimeMinutes).trim() ? parseInt(slaReactionTimeMinutes) : null,
                 assignedAt: assignedAt && String(assignedAt).trim() ? new Date(assignedAt.length === 16 ? assignedAt + ':00' : assignedAt) : null,
-                plannedDurationMinutes: slaDurationMinutes && String(slaDurationMinutes).trim() ? parseInt(slaDurationMinutes) : null,
+                plannedDurationMinutes: slaDurationMinutes && String(slaDurationMinutes).trim() ? parseFloat(slaDurationMinutes) : null,
                 spentTimeHours: spentTimeHours && String(spentTimeHours).trim() ? parseFloat(spentTimeHours) : null,
             },
             include: { // Включаем связанные данные в ответ

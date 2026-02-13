@@ -89,7 +89,7 @@ model Bid {
          plannedResolutionDate DateTime?
          plannedReactionTimeMinutes Int?
          assignedAt  DateTime?
-         plannedDurationMinutes Int?
+         plannedDurationMinutes Decimal? @db.Decimal(10, 2)
          spentTimeHours Decimal? @db.Decimal(10, 2)
          createdBy   Int
          currentResponsibleUserId Int?
