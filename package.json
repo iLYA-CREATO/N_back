@@ -7,7 +7,8 @@
     "seed": "node prisma/seed.js"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "npx prisma migrate deploy && node server.js",
+    "postinstall": "prisma generate",
     "dev": "nodemon server.js",
     "test": "jest",
     "test:watch": "jest --watch",
