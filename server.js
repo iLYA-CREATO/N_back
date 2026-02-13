@@ -39,47 +39,9 @@ const cron = require('node-cron');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const http = require('http');
-const WebSocket = require('ws');
-const { notificationEmitter, notifyNewBid } = require('./services/notifications');
 
 // Создание экземпляра Express приложения
 const app = express();
-
-// === WebSocket Server для уведомлений ===
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-// Хранилище подключенных клиентов
-const clients = new Set();
-
-wss.on('connection', (ws) => {
-    console.log('🔌 Новый WebSocket клиент подключен');
-    clients.add(ws);
-
-    ws.on('close', () => {
-        console.log('🔌 WebSocket клиент отключен');
-        clients.delete(ws);
-    });
-
-    ws.on('error', (error) => {
-        console.error('WebSocket ошибка:', error);
-        clients.delete(ws);
-    });
-});
-
-// Слушаем события о новых заявках и отправляем через WebSocket
-notificationEmitter.on('newBid', (message) => {
-    clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(message);
-        }
-    });
-    console.log('📢 Уведомление о новой заявке отправлено клиентам');
-});
-
-// Экспортируем функции для использования в маршрутах
-module.exports = { app, server, notifyNewBid };
 
 // === Middleware ===
 // Разрешение CORS для всех доменов (в продакшене лучше настроить конкретные домены)
@@ -154,13 +116,10 @@ cron.schedule('0 2 * * *', () => {
 // Получение порта из переменных окружения или значение по умолчанию
 const PORT = process.env.PORT || 5000;
 
-// Если этот файл запущен напрямую (не импортирован)
-if (require.main === module) {
-    // Запуск сервера на указанном порту (0.0.0.0 для доступа из сети)
-    server.listen(PORT, '0.0.0.0', () => {
-        console.log(`🚀 Сервер запущен на порту ${PORT} (доступ из сети: http://192.168.88.115:5000)`);
-        console.log(`📊 Используется Prisma ORM с PostgreSQL`);
-        console.log(`💾 Автоматические бэкапы настроены (ежедневно в 2:00)`);
-        console.log(`🔌 WebSocket сервер для уведомлений запущен`);
-    });
-}
+// Запуск сервера на указанном порту (0.0.0.0 для доступа из сети)
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Сервер запущен на порту ${PORT} (доступ из сети: http://192.168.88.115:5000)`);
+    console.log(`📊 Используется Prisma ORM с PostgreSQL`);
+    console.log(`💾 Автоматические бэкапы настроены (ежедневно в 2:00)`);
+    // Тест перезапуска
+});

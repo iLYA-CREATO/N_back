@@ -20,15 +20,6 @@ const multer = require('multer');
 // Импорт sharp для сжатия изображений
 const sharp = require('sharp');
 
-// Получаем notifyNewBid из server.js
-let notifyNewBid = null;
-try {
-    const serverModule = require('../server.js');
-    notifyNewBid = serverModule.notifyNewBid;
-} catch (e) {
-    console.log('WebSocket notify не доступен (модуль server.js не экспортирует)');
-}
-
 // Функция для восстановления UTF-8 из Mojibake и URL-encoded
 const fixFilename = (filename) => {
     if (!filename) return filename;
@@ -628,21 +619,6 @@ router.post('/', authMiddleware, async (req, res) => {
             },
         });
 
-        // Отправляем WebSocket уведомление о новой заявке
-        if (notifyNewBid) {
-            try {
-                notifyNewBid({
-                    id: newBid.id,
-                    tema: newBid.tema,
-                    status: newBid.status,
-                    clientName: newBid.client.name,
-                    createdAt: newBid.createdAt,
-                });
-            } catch (wsError) {
-                console.error('Ошибка отправки WebSocket уведомления:', wsError);
-            }
-        }
-
         // Отправляем созданную заявку с дополнительными полями
         res.status(201).json({
             ...newBid,
@@ -810,23 +786,6 @@ router.post('/batch', authMiddleware, async (req, res) => {
 
         console.log(`Создано ${createdBids.length} заявок`);
         logBidData('Создано batch заявок', { count: createdBids.length, bids: createdBids.map(b => b.id) });
-
-        // Отправляем WebSocket уведомления о новых заявках
-        if (notifyNewBid) {
-            try {
-                createdBids.forEach((bid) => {
-                    notifyNewBid({
-                        id: bid.id,
-                        tema: bid.tema,
-                        status: bid.status,
-                        clientName: bid.client.name,
-                        createdAt: bid.createdAt,
-                    });
-                });
-            } catch (wsError) {
-                console.error('Ошибка отправки WebSocket уведомлений для batch:', wsError);
-            }
-        }
 
         // Форматируем ответ
         const formattedBids = createdBids.map(bid => ({
