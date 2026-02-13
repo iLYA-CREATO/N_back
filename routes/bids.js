@@ -579,11 +579,16 @@ router.post('/', authMiddleware, async (req, res) => {
             }
         }
 
+        // Валидация обязательных полей
+        if (!bidTypeId || !String(bidTypeId).trim()) {
+            return res.status(400).json({ message: 'Тип заявки (bidTypeId) обязателен' });
+        }
+        
         // Создаем новую заявку в базе данных
         const newBid = await prisma.bid.create({
             data: {
                 clientId: parseInt(clientId), // ID клиента
-                bidTypeId: bidTypeId && String(bidTypeId).trim() ? parseInt(bidTypeId) : null, // ID типа заявки
+                bidTypeId: parseInt(bidTypeId), // ID типа заявки (обязателен)
                 tema: title, // Заголовок заявки
                 amount: (amount !== undefined && amount !== null && amount.toString().trim() !== '') ? parseFloat(amount) : 0, // Сумма (по умолчанию 0)
                 status: status || 'Открыта', // Статус (по умолчанию 'Открыта')
@@ -692,6 +697,11 @@ router.post('/batch', authMiddleware, async (req, res) => {
         let slaReactionTimeMinutes = plannedReactionTimeMinutes;
         let slaDurationMinutes = plannedDurationMinutes;
         
+        // Валидация обязательных полей
+        if (!bidTypeId || !String(bidTypeId).trim()) {
+            return res.status(400).json({ message: 'Тип заявки (bidTypeId) обязателен' });
+        }
+        
         let bidTypeIdStr = bidTypeId ? bidTypeId.toString() : null;
         if (bidTypeIdStr && bidTypeIdStr.trim()) {
             bidType = await prisma.bidType.findUnique({
@@ -733,7 +743,7 @@ router.post('/batch', authMiddleware, async (req, res) => {
                 return prisma.bid.create({
                     data: {
                         clientId: parseInt(clientId),
-                        bidTypeId: bidTypeIdStr && bidTypeIdStr.trim() ? parseInt(bidTypeIdStr) : null,
+                        bidTypeId: parseInt(bidTypeIdStr), // bidTypeIdStr is validated to be non-empty above
                         tema: title,
                         amount: (amount !== undefined && amount !== null && amount.toString().trim() !== '') ? parseFloat(amount) : 0,
                         status: status || 'Открыта',
