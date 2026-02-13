@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "ClientObject" ADD COLUMN     "distance" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "region" TEXT NOT NULL DEFAULT '68';

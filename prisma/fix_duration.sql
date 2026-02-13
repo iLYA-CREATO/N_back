@@ -1,0 +1,2 @@
+ALTER TABLE "Bid" ALTER COLUMN "plannedDurationMinutes" TYPE INTEGER;
+ALTER TABLE "Bid" ALTER COLUMN "spentTimeHours" TYPE DECIMAL(10, 2);

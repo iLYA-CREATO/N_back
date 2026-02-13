@@ -1,0 +1,321 @@
+// Это файл схемы Prisma,
+// learn more about it в документации: https://pris.ly/d/prisma-schema
+
+// Ищете способы ускорить запросы или легко масштабировать с serverless или edge функциями?
+// Попробуйте Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+    id        Int      @id @default(autoincrement())
+    username  String   @unique
+    fullName  String?
+    email     String   @unique
+    password  String
+    role      String   @default("user")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    clients   Client[]
+    bids      Bid[]    @relation("BidCreator")
+    responsibleBids Bid[]   @relation("BidCurrentResponsible")
+    comments  Comment[]
+    auditLogs AuditLog[]
+    bidFiles  BidFile[]
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  permissions Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Client {
+      id           Int      @id @default(autoincrement())
+      name         String
+      email        String
+      phone        String?
+      subjectForm  String?
+      responsibleId Int?
+      responsible  User?    @relation(fields: [responsibleId], references: [id])
+      createdAt    DateTime @default(now())
+      updatedAt    DateTime @updatedAt
+      bids         Bid[]
+      clientObjects ClientObject[]
+      attributeValues ClientAttributeValue[]
+      clientEquipments ClientEquipment[]
+   }
+
+model ClientObject {
+    id          Int      @id @default(autoincrement())
+    clientId    Int
+    brandModel  String
+    stateNumber String
+    region      String   @default("68")
+    distance    Int      @default(0)
+    equipmentId Int?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+    equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+    bids        Bid[]
+   }
+
+model Bid {
+         id          Int      @id @default(autoincrement())
+         clientId    Int
+         bidTypeId   Int
+         tema        String
+         amount      Decimal  @db.Decimal(10, 2)
+         status      String
+         description String?
+         clientObjectId Int?
+         updNumber   String?
+         updDate     DateTime?
+         contract    String?
+         workAddress String?
+         contactFullName String?
+         contactPhone String?
+         parentId    Int?
+         plannedResolutionDate DateTime?
+         plannedReactionTimeMinutes Int?
+         assignedAt  DateTime?
+         plannedDurationMinutes Int?
+         spentTimeHours Decimal? @db.Decimal(10, 2)
+         createdBy   Int
+         currentResponsibleUserId Int?
+         createdAt   DateTime @default(now())
+         updatedAt   DateTime @updatedAt
+         client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+         bidType     BidType  @relation(fields: [bidTypeId], references: [id])
+         clientObject ClientObject? @relation(fields: [clientObjectId], references: [id])
+         creator     User     @relation("BidCreator", fields: [createdBy], references: [id])
+         currentResponsible User? @relation("BidCurrentResponsible", fields: [currentResponsibleUserId], references: [id])
+         parent      Bid?     @relation("BidHierarchy", fields: [parentId], references: [id])
+         children    Bid[]    @relation("BidHierarchy")
+         comments    Comment[]
+         bidSpecifications BidSpecification[]
+         auditLogs   AuditLog[]
+         bidEquipments BidEquipment[]
+         clientEquipments ClientEquipment[]
+         bidFiles    BidFile[]
+         contracts   Contract[]
+     }
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  bidId     Int
+  userId    Int
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  bid       Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SpecificationCategory {
+    id            Int            @id @default(autoincrement())
+    name          String
+    description   String?
+    parentId      Int?
+    parent        SpecificationCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+    children      SpecificationCategory[] @relation("CategoryHierarchy")
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    specifications Specification[]
+}
+
+model Specification {
+     id         Int                  @id @default(autoincrement())
+     categoryId Int
+     category   SpecificationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+     name       String
+     discount   Decimal              @db.Decimal(5, 2)
+     cost       Decimal              @db.Decimal(10, 2)
+     createdAt  DateTime             @default(now())
+     updatedAt  DateTime             @updatedAt
+     bidSpecifications BidSpecification[]
+}
+
+model BidSpecification {
+     id             Int          @id @default(autoincrement())
+     bidId          Int
+     bid            Bid          @relation(fields: [bidId], references: [id], onDelete: Cascade)
+     specificationId Int
+     specification  Specification @relation(fields: [specificationId], references: [id], onDelete: Cascade)
+     executorIds    Int[]
+     discount       Decimal      @db.Decimal(5, 2) @default(0)
+     createdAt      DateTime     @default(now())
+     updatedAt      DateTime     @updatedAt
+}
+
+model Supplier {
+       id        Int      @id @default(autoincrement())
+       name      String
+       entityType String
+       inn       String
+       phone     String?
+       email     String?
+       createdAt DateTime @default(now())
+       updatedAt DateTime @updatedAt
+   }
+
+model BidType {
+           id                    Int      @id @default(autoincrement())
+           name                  String   @unique
+           description           String?
+           statuses              Json?
+           transitions           Json?
+           plannedReactionTimeMinutes Int?    // SLA: плановое время реакции в минутах
+           plannedDurationMinutes  Decimal?  @db.Decimal(10, 2)  // SLA: плановая продолжительность в минутах
+           createdAt             DateTime @default(now())
+           updatedAt             DateTime @updatedAt
+           bids                  Bid[]
+       }
+
+model AuditLog {
+        id        Int      @id @default(autoincrement())
+        bidId     Int
+        bid       Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+        userId    Int
+        user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+        action    String
+        details   String?
+        createdAt DateTime @default(now())
+}
+
+model Warehouse {
+        id        Int      @id @default(autoincrement())
+        name      String   @unique
+        address   String?
+        createdAt DateTime @default(now())
+        updatedAt DateTime @updatedAt
+}
+
+model Equipment {
+        id           Int      @id @default(autoincrement())
+        name         String   @unique
+        productCode  Int?     @unique
+        purchasePrice Decimal? @db.Decimal(10, 2)
+        sellingPrice  Decimal? @db.Decimal(10, 2)
+        description  String?  @db.Text
+        images       String[] @default([])
+        createdAt    DateTime @default(now())
+        updatedAt    DateTime @updatedAt
+        clientObjects ClientObject[]
+        bidEquipments BidEquipment[]
+        clientEquipments ClientEquipment[]
+    }
+
+model BidEquipment {
+        id          Int      @id @default(autoincrement())
+        bidId       Int
+        bid         Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+        equipmentId Int
+        equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+        imei        String?
+        quantity    Int      @default(1)
+        returnReason String?
+        createdAt   DateTime @default(now())
+        updatedAt   DateTime @updatedAt
+        contract    Contract?
+}
+
+model ClientEquipment {
+        id          Int      @id @default(autoincrement())
+        clientId    Int
+        client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+        equipmentId Int
+        equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+        bidId       Int?
+        bid         Bid?     @relation(fields: [bidId], references: [id])
+        imei        String?
+        createdAt   DateTime @default(now())
+        updatedAt   DateTime @updatedAt
+
+        @@unique([clientId, equipmentId])
+}
+
+model ClientAttribute {
+        id          Int      @id @default(autoincrement())
+        name        String
+        type        String
+        options     Json?
+        isEnabled   Boolean  @default(true)
+        createdAt   DateTime @default(now())
+        updatedAt   DateTime @updatedAt
+        values      ClientAttributeValue[]
+}
+
+model ClientAttributeValue {
+        id          Int      @id @default(autoincrement())
+        clientId    Int
+        client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+        attributeId Int
+        attribute   ClientAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+        value       String
+        createdAt   DateTime @default(now())
+        updatedAt   DateTime @updatedAt
+
+        @@unique([clientId, attributeId])
+}
+
+model Notification {
+         id          Int      @id @default(autoincrement())
+         userId      Int
+         title       String
+         message     String
+         type        String
+         bidId       Int?
+         isRead      Boolean  @default(false)
+         createdAt   DateTime @default(now())
+}
+
+model BidFile {
+         id          Int      @id @default(autoincrement())
+         bidId       Int
+         bid         Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+         filename    String
+         originalName String
+         fileSize    Int
+         mimeType    String?
+         uploadedBy  Int
+         user        User     @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+         createdAt   DateTime @default(now())
+
+         @@index([bidId])
+}
+
+model Contract {
+        id          Int      @id @default(autoincrement())
+        bidId       Int
+        bid         Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+        bidEquipmentId Int?     @unique
+        bidEquipment BidEquipment? @relation(fields: [bidEquipmentId], references: [id], onDelete: SetNull)
+        contractNumber String?
+        clientName   String?
+        responsibleName String?
+        clientObject String?
+        equipmentName String?
+        imei         String?
+        quantity     Int      @default(1)
+        contractEndDate DateTime?
+        createdAt   DateTime @default(now())
+        updatedAt   DateTime @updatedAt
+}
+
+model SubjectForm {
+        id          Int      @id @default(autoincrement())
+        name        String   @unique
+        createdAt   DateTime @default(now())
+        updatedAt   DateTime @updatedAt
+}
