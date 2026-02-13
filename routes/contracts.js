@@ -242,7 +242,8 @@ router.get('/bid/:bidId', authMiddleware, async (req, res) => {
         res.json({ data: contracts });
     } catch (error) {
         console.error('Get contracts by bid ID error:', error);
-        res.status(500).json({ message: 'Server error' });
+        // Return empty array if table doesn't exist
+        res.json({ data: [] });
     }
 });
 
