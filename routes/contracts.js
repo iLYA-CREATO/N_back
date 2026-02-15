@@ -25,20 +25,59 @@ router.get('/', authMiddleware, async (req, res) => {
     try {
         console.log('Getting all contracts');
         
-        // Параметры пагинации
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+        // Параметры пагинации - защищённая обработка
+        let page = 1;
+        let limit = 20;
+        
+        // Обработка как нормальных параметров, так и ошибочных (page[page]=1)
+        if (typeof req.query.page === 'string') {
+            page = parseInt(req.query.page) || 1;
+        } else if (typeof req.query.page === 'object' && req.query.page !== null) {
+            // Формат page[page] - от фронтенда приходит объект
+            page = parseInt(req.query.page?.page) || 1;
+            limit = parseInt(req.query.page?.limit) || 20;
+        }
+        
+        if (typeof req.query.limit === 'string') {
+            limit = parseInt(req.query.limit) || 20;
+        }
+        
         const skip = (page - 1) * limit;
         const take = limit;
         
         // Параметры поиска
-        const search = req.query.search || '';
+        const search = req.query.search || (req.query.page?.search || '');
         
-        // Параметры фильтрации
-        const clientId = req.query.client || '';
-        const responsibleId = req.query.responsible || '';
-        const clientObjectId = req.query.clientObject || '';
-        const equipment = req.query.equipment || '';
+        // Параметры фильтрации - защищённая обработка
+        let clientId = '';
+        let responsibleId = '';
+        let clientObjectId = '';
+        let equipment = '';
+        
+        // Обработка как нормальных параметров, так и ошибочных
+        if (typeof req.query.client === 'string') {
+            clientId = req.query.client;
+        } else if (typeof req.query.client === 'object' && req.query.client !== null) {
+            clientId = req.query.client?.client || req.query.client?.[0] || '';
+        }
+        
+        if (typeof req.query.responsible === 'string') {
+            responsibleId = req.query.responsible;
+        } else if (typeof req.query.responsible === 'object' && req.query.responsible !== null) {
+            responsibleId = req.query.responsible?.responsible || req.query.responsible?.[0] || '';
+        }
+        
+        if (typeof req.query.clientObject === 'string') {
+            clientObjectId = req.query.clientObject;
+        } else if (typeof req.query.clientObject === 'object' && req.query.clientObject !== null) {
+            clientObjectId = req.query.clientObject?.clientObject || req.query.clientObject?.[0] || '';
+        }
+        
+        if (typeof req.query.equipment === 'string') {
+            equipment = req.query.equipment;
+        } else if (typeof req.query.equipment === 'object' && req.query.equipment !== null) {
+            equipment = req.query.equipment?.equipment || req.query.equipment?.[0] || '';
+        }
         
         // Параметры сортировки
         const sortBy = req.query.sortBy || 'createdAt';

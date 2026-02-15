@@ -19,6 +19,12 @@ router.get('/', authMiddleware, async (req, res) => {
                     select: {
                         id: true,
                         name: true,
+                        responsible: {
+                            select: {
+                                id: true,
+                                fullName: true,
+                            },
+                        },
                     },
                 },
                 equipment: {
@@ -32,6 +38,12 @@ router.get('/', authMiddleware, async (req, res) => {
                         id: true,
                         tema: true,
                         status: true,
+                    },
+                },
+                responsible: {
+                    select: {
+                        id: true,
+                        fullName: true,
                     },
                 },
             },
@@ -69,6 +81,12 @@ router.get('/:id', authMiddleware, async (req, res) => {
                         description: true,
                     },
                 },
+                responsible: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                    },
+                },
             },
         });
 
@@ -86,7 +104,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Создание объекта клиента
 router.post('/', authMiddleware, async (req, res) => {
     try {
-        const { clientId, brandModel, stateNumber, equipmentId } = req.body;
+        const { clientId, brandModel, stateNumber, equipmentId, responsibleId } = req.body;
 
         // If equipmentId provided, check it belongs to the client
         if (equipmentId) {
@@ -107,9 +125,11 @@ router.post('/', authMiddleware, async (req, res) => {
                 brandModel,
                 stateNumber,
                 equipmentId: equipmentId ? parseInt(equipmentId) : null,
+                responsibleId: responsibleId ? parseInt(responsibleId) : null,
             },
             include: {
-                equipment: true
+                equipment: true,
+                responsible: true,
             }
         });
 
@@ -123,7 +143,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // Обновление объекта клиента
 router.put('/:id', authMiddleware, async (req, res) => {
     try {
-        const { brandModel, stateNumber, equipmentId } = req.body;
+        const { brandModel, stateNumber, equipmentId, responsibleId } = req.body;
 
         // Get current clientObject to check client
         const currentObject = await prisma.clientObject.findUnique({
@@ -152,9 +172,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
                 brandModel,
                 stateNumber,
                 equipmentId: equipmentId ? parseInt(equipmentId) : null,
+                responsibleId: responsibleId ? parseInt(responsibleId) : null,
             },
             include: {
-                equipment: true
+                equipment: true,
+                responsible: true,
             }
         });
 

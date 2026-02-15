@@ -28,6 +28,7 @@ model User {
     comments  Comment[]
     auditLogs AuditLog[]
     bidFiles  BidFile[]
+    clientObjects ClientObject[]
 }
 
 model Role {
@@ -63,10 +64,12 @@ model ClientObject {
     region      String   @default("68")
     distance    Int      @default(0)
     equipmentId Int?
+    responsibleId Int?
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
     client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
     equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+    responsible User?    @relation(fields: [responsibleId], references: [id])
     bids        Bid[]
    }
 
