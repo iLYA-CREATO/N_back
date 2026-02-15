@@ -20,47 +20,7 @@ const multer = require('multer');
 // Импорт sharp для сжатия изображений
 const sharp = require('sharp');
 
-// Функция для восстановления UTF-8 из Mojibake и URL-encoded
-const fixFilename = (filename) => {
-    if (!filename) return filename;
-    let fixed = filename;
-    
-    // Пробуем декодировать URL-encoded несколько раз
-    try {
-        while (fixed.includes('%')) {
-            const decoded = decodeURIComponent(fixed);
-            if (decoded === fixed) break; // Больше нечего декодировать
-            fixed = decoded;
-        }
-    } catch (e) {
-        // Если decodeURIComponent не работает, пробуем latin1 -> utf8
-    }
-    
-    // Если содержит Mojibake символы (Ð, â, Ñ, Ã и т.д.), значит это уже нечитаемая каша
-    // Удаляем все не-ASCII символы и заменяем проблемные последовательности
-    if (fixed.includes('Ð') || fixed.includes('â') || fixed.includes('Ñ') || fixed.includes('Ã')) {
-        // Пробуем декодировать как latin1 для восстановления UTF-8
-        try {
-            const buffer = Buffer.from(fixed, 'latin1');
-            const utf8Version = buffer.to('utf8');
-            // Если после декодирования получили читаемый текст с кириллицей, используем его
-            if (utf8Version.match(/[а-яёА-ЯЁ]/) && !utf8Version.includes('Ð')) {
-                fixed = utf8Version;
-            } else {
-                // Иначе удаляем все не-ASCII символы
-                fixed = fixed.replace(/[^\x00-\x7F]/g, '_');
-            }
-        } catch (e) {
-            // Удаляем все не-ASCII символы
-            fixed = fixed.replace(/[^\x00-\x7F]/g, '_');
-        }
-    }
-    
-    return fixed;
-};
-
-// Функция для сжатия изображений (уменьшение в 5 раз)
-const compressImage = async (inputPath, outputPath) => {
+const sharp = require('sharp');
     try {
         // Получаем метаданные изображения
         const metadata = await sharp(inputPath).metadata();
@@ -1574,34 +1534,37 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
-        // Генерируем уникальное имя файла с временной меткой
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const bidId = req.params.id;
+        const uploadDir = path.join(__dirname, '..', 'uploads', 'bids', bidId);
         
-        // Пытаемся декодировать имя файла из URL-encoded Mojibake
-        let originalName = file.originalname;
+        // Получаем расширение из оригинального файла
+        const ext = path.extname(file.originalname).toLowerCase();
+        const validExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tga', '.torrent', '.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+        const fileExt = validExts.includes(ext) ? ext : '.file';
         
-        // Пробуем декодировать URL-encoded символы (может быть закодировано несколько раз)
+        // Сканируем директорию и ищем существующие файлы image*
+        let imageCount = 0;
         try {
-            while (originalName.includes('%')) {
-                const decoded = decodeURIComponent(originalName);
-                if (decoded === originalName) break;
-                originalName = decoded;
+            if (fs.existsSync(uploadDir)) {
+                const files = fs.readdirSync(uploadDir);
+                files.forEach(f => {
+                    // Ищем файлы вида image, image1, image2 и т.д.
+                    const match = f.match(/^image(\d*)\.?.*$/);
+                    if (match) {
+                        const num = match[1] === '' ? 0 : parseInt(match[1], 10);
+                        if (num >= imageCount) {
+                            imageCount = num + 1;
+                        }
+                    }
+                });
             }
         } catch (e) {
-            // Если не удалось, пробуем latin1 -> utf8 буфер (исправление Mojibake)
-            try {
-                originalName = Buffer.from(originalName, 'latin1').to('utf8');
-            } catch (e2) {
-                // Оставляем как есть
-            }
+            console.error('Error scanning upload directory:', e);
         }
         
-        // Очищаем имя файла от проблемных символов, сохраняя кириллицу
-        const safeName = originalName
-            .replace(/[^\w\s\-а-яёА-ЯЁ\.]/g, '_')  // Заменяем спецсимволы на подчеркивание
-            .replace(/\s+/g, '_');                   // Заменяем пробелы на подчеркивание
-        
-        cb(null, uniqueSuffix + '-' + safeName);
+        // Генерируем имя: image, image1, image2 и т.д.
+        const baseName = imageCount === 0 ? 'image' : 'image' + imageCount;
+        cb(null, baseName + fileExt);
     }
 });
 
@@ -1712,10 +1675,6 @@ router.post('/:id/files', authMiddleware, upload.array('files', 10), async (req,
         
         // Обрабатываем каждый файл
         for (const file of files) {
-            // Имя файла уже исправлено в multer storage
-            // Но оригинальное имя могло быть повреждено, исправляем его
-            const fixedOriginalName = fixFilename(file.originalname);
-            
             let fileSize = file.size;
             let finalFilename = file.filename;
             
@@ -1746,7 +1705,8 @@ router.post('/:id/files', authMiddleware, upload.array('files', 10), async (req,
                 data: {
                     bidId: bidId,
                     filename: finalFilename,
-                    originalName: fixedOriginalName,
+                    // Сохраняем только системное имя (image, image1 и т.д.) как originalName
+                    originalName: finalFilename,
                     fileSize: fileSize,
                     mimeType: file.mimetype,
                     uploadedBy: req.user.id,
@@ -1782,7 +1742,7 @@ router.post('/:id/files', authMiddleware, upload.array('files', 10), async (req,
                     bidId: bidId,
                     userId: req.user.id,
                     action: 'Файл добавлен',
-                    details: fileInfo.originalName,
+                    details: 'Файл загружен',
                 },
             });
         }
@@ -1848,6 +1808,113 @@ router.delete('/:id/files/:fileName(*)', authMiddleware, async (req, res) => {
         res.json({ message: 'Файл успешно удалён' });
     } catch (error) {
         console.error('Delete bid file error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Валидация и очистка файлов заявки - удаляет записи о несуществующих файлах
+router.post('/:id/files/validate', authMiddleware, async (req, res) => {
+    try {
+        const bidId = parseInt(req.params.id);
+        
+        // Получаем все файлы заявки из базы данных
+        const bidFiles = await prisma.bidFile.findMany({
+            where: { bidId },
+        });
+        
+        const uploadsDir = path.join(__dirname, '..', 'uploads', 'bids', bidId.toString());
+        const deletedFiles = [];
+        const existingFiles = [];
+        
+        for (const bidFile of bidFiles) {
+            const filePath = path.join(uploadsDir, bidFile.filename);
+            
+            if (fs.existsSync(filePath)) {
+                existingFiles.push({
+                    id: bidFile.id,
+                    filename: bidFile.filename,
+                    originalName: bidFile.originalName,
+                });
+            } else {
+                // Файл не существует на диске, удаляем запись из БД
+                await prisma.bidFile.delete({
+                    where: { id: bidFile.id },
+                });
+                deletedFiles.push({
+                    id: bidFile.id,
+                    filename: bidFile.filename,
+                    originalName: bidFile.originalName,
+                });
+                console.log(`Удалён orphaned файл из БД: ${bidFile.filename} (заявка ${bidId})`);
+            }
+        }
+        
+        res.json({
+            message: `Проверка завершена: ${existingFiles.length} файлов существует, ${deletedFiles.length} записей удалено`,
+            deletedFiles,
+            existingFiles,
+        });
+    } catch (error) {
+        console.error('Validate bid files error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Глобальная валидация всех файлов - для всех заявок
+router.post('/files/validate-all', authMiddleware, async (req, res) => {
+    try {
+        // Получаем все файлы из базы данных
+        const allBidFiles = await prisma.bidFile.findMany({
+            include: {
+                bid: {
+                    select: { id: true, tema: true },
+                },
+            },
+        });
+        
+        const uploadsBidsDir = path.join(__dirname, '..', 'uploads', 'bids');
+        const results = {
+            totalFiles: allBidFiles.length,
+            existingFiles: 0,
+            deletedFiles: 0,
+            errors: [],
+            deletedRecords: [],
+        };
+        
+        for (const bidFile of allBidFiles) {
+            const filePath = path.join(uploadsBidsDir, bidFile.bidId.toString(), bidFile.filename);
+            
+            if (fs.existsSync(filePath)) {
+                results.existingFiles++;
+            } else {
+                // Файл не существует на диске, удаляем запись из БД
+                try {
+                    await prisma.bidFile.delete({
+                        where: { id: bidFile.id },
+                    });
+                    results.deletedFiles++;
+                    results.deletedRecords.push({
+                        bidId: bidFile.bidId,
+                        bidTitle: bidFile.bid?.tema || 'Unknown',
+                        filename: bidFile.filename,
+                        originalName: bidFile.originalName,
+                    });
+                    console.log(`Удалён orphaned файл из БД: ${bidFile.filename} (заявка ${bidFile.bidId})`);
+                } catch (deleteError) {
+                    results.errors.push({
+                        fileId: bidFile.id,
+                        error: deleteError.message,
+                    });
+                }
+            }
+        }
+        
+        res.json({
+            message: `Глобальная проверка завершена: ${results.existingFiles} файлов существует, ${results.deletedFiles} записей удалено`,
+            results,
+        });
+    } catch (error) {
+        console.error('Validate all bid files error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

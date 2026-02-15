@@ -247,7 +247,7 @@ router.get('/', authMiddleware, async (req, res) => {
         if (equipment) {
             const equipmentLower = equipment.toLowerCase();
             filteredContracts = formattedContracts.filter(c => 
-                c.equipmentName.toLowerCase().includes(equipmentLower)
+                c.equipmentName && c.equipmentName.toLowerCase().includes(equipmentLower)
             );
         }
         
@@ -262,7 +262,8 @@ router.get('/', authMiddleware, async (req, res) => {
         });
     } catch (error) {
         console.error('Get contracts error:', error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
