@@ -121,11 +121,66 @@ router.get('/', authMiddleware, async (req, res) => {
         const sortBy = req.query.sortBy || 'createdAt';
         const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
         
+        // Параметры фильтрации
+        const search = req.query.search || '';
+        const status = req.query.status || '';
+        const bidTypeId = req.query.bidTypeId ? parseInt(req.query.bidTypeId) : null;
+        const clientId = req.query.clientId ? parseInt(req.query.clientId) : null;
+        const responsibleId = req.query.responsibleId ? parseInt(req.query.responsibleId) : null;
+        const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom) : null;
+        const dateTo = req.query.dateTo ? new Date(req.query.dateTo) : null;
+        
+        // Построение условий where
+        const where = {};
+        
+        // Поиск по названию или описанию
+        if (search) {
+            where.OR = [
+                { tema: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+        
+        // Фильтр по статусу
+        if (status) {
+            where.status = status;
+        }
+        
+        // Фильтр по типу заявки
+        if (bidTypeId) {
+            where.bidTypeId = bidTypeId;
+        }
+        
+        // Фильтр по клиенту
+        if (clientId) {
+            where.clientId = clientId;
+        }
+        
+        // Фильтр по ответственному
+        if (responsibleId) {
+            where.currentResponsibleUserId = responsibleId;
+        }
+        
+        // Фильтр по дате создания
+        if (dateFrom || dateTo) {
+            where.createdAt = {};
+            if (dateFrom) {
+                where.createdAt.gte = dateFrom;
+            }
+            if (dateTo) {
+                // Устанавливаем конец дня
+                const endOfDay = new Date(dateTo);
+                endOfDay.setHours(23, 59, 59, 999);
+                where.createdAt.lte = endOfDay;
+            }
+        }
+        
         // Получаем общее количество заявок для расчета пагинации
-        const totalCount = await prisma.bid.count();
+        const totalCount = await prisma.bid.count({ where });
         
         // Получаем заявки с пагинацией и сортировкой
         const bids = await prisma.bid.findMany({
+            where,
             orderBy: { [sortBy]: sortOrder },
             skip: skip,
             take: take,
