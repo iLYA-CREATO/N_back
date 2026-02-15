@@ -326,7 +326,7 @@ router.post('/', authMiddleware, async (req, res) => {
         if (bidEquipmentId) {
             await prisma.bidEquipment.update({
                 where: { id: parseInt(bidEquipmentId) },
-                data: { },
+                data: { contractId: contract.id },
             });
         }
         
