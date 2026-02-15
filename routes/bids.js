@@ -20,9 +20,7 @@ const multer = require('multer');
 // Импорт sharp для сжатия изображений
 const sharp = require('sharp');
 
-const sharp = require('sharp');
-    try {
-        // Получаем метаданные изображения
+
         const metadata = await sharp(inputPath).metadata();
         
         // Вычисляем новые размеры (уменьшаем в 5 раз)
